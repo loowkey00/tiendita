@@ -1,0 +1,22 @@
+# Editores de código
+.vscode/
+.idea/
+*.swp
+*.vscdb
+
+# Sistema Operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs y temporales
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.tmp/
+
+# Si usas preprocesadores como Sass o herramientas de node
+node_modules/
+.sass-cache/
+*.css.map
