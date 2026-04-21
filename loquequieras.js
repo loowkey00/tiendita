@@ -62,13 +62,19 @@ document.body.insertAdjacentHTML("beforeend", `
             </div>
           </div>
 
-          <p id="pay-status" class="text-center fw-semibold mb-3" style="min-height: 24px;"></p>
+          <span id="pay-status">
+          TEST STATUS
+          </span>
 
-          <button id="pay-confirm-btn" type="button"
+          <button id="add-card-btn" type="button"
+            class="btn btn-danger btn-lg w-100 fw-bold text-uppercase shadow-sm">
+            <i class="bi bi-lock-fill me-2"></i>Agregar tarjeta
+          </button>
+
+          <button id="pay-confirm-btn" type="button" style="display: none;"
             class="btn btn-danger btn-lg w-100 fw-bold text-uppercase shadow-sm">
             <i class="bi bi-lock-fill me-2"></i>Confirmar Pago
           </button>
-
         </div>
       </div>
     </div>
@@ -93,40 +99,109 @@ document.getElementById("pay-cvv").addEventListener("input", function () {
   this.value = this.value.replace(/\D/g, "").substring(0, 3);
 });
 
+
+
+
 // =========================
 // LÓGICA DEL PAGO
 // =========================
+  const changeStatus = (message, customClass) => {
+    let status = `<span class='${customClass}'> ${message}</span>`;
+    return status;
+  }
+
+  const getApprovedCards = () => {
+
+    return []
+  }
+  const getRejectedCards = () => {
+
+    return []
+  }
+
+  const getCard = (id) => {
+
+    return {}
+  }
+
+  const saveCard = () => {
+
+
+    return 
+  }
+
+  const generateId = () => {
+    return Date.now().toString(36) + Math.random().toString(36).substring(2,10);
+  }
+
+  const createCard = (number, name, expiry, cvv, active) => {
+
+    let dangerClass = "text-danger";
+    let message = "";
+
+    if (!number || !/^\d{16}$/.test(number)) {
+      message =  "❌ Número de tarjeta inválido (16 dígitos)";
+      status.innerHTML = changeStatus(message, dangerClass);
+      return;
+    }
+    if (!name) {
+      message = "❌ Ingresa el nombre del titular";
+      status.innerHTML = changeStatus(message, dangerClass);
+      return;
+    }
+    if (!expiry || !/^(0[1-9]|1[0-2])\/\d{2}$/.test(expiry)) {
+      message = "❌ Fecha inválida (formato MM/AA)";
+      status.innerHTML = changeStatus(message, dangerClass);
+      return;
+    }
+    if (!cvv || !/^\d{3}$/.test(cvv)) {
+      message = "❌ CVV inválido (3 dígitos)";
+      status.innerHTML = changeStatus(message, dangerClass);
+      return;
+    }
+
+    if (typeof(active) == Boolean(active)) {
+      message = "❌ Active debe ser booleano (true/false)";
+      status.innerHTML = changeStatus(message, dangerClass);
+      return;      
+    }
+
+    let cardJson = {
+      "id": generateId(),
+      "number": number,
+      "name": name,
+      "expiry": expiry,
+      "cvv": cvv,
+      "active": active
+    }
+
+    return cardJson;
+  } 
 
 document.getElementById("pay-confirm-btn").addEventListener("click", function () {
+
+  const btn = document.getElementById("pay-confirm-btn");
+  btn.disabled = true;
+
   const status = document.getElementById("pay-status");
+  status.innerHTML = `<span class="text-secondary">⏳ Procesando pago...</span>`;
 
   const number = document.getElementById("pay-number").value.replace(/\s/g, "").trim();
   const name   = document.getElementById("pay-name").value.trim();
   const expiry = document.getElementById("pay-expiry").value.trim();
   const cvv    = document.getElementById("pay-cvv").value.trim();
 
-  // Validaciones
-  if (!number || !/^\d{16}$/.test(number)) {
-    status.innerHTML = `<span class="text-danger">❌ Número de tarjeta inválido (16 dígitos)</span>`;
-    return;
-  }
-  if (!name) {
-    status.innerHTML = `<span class="text-danger">❌ Ingresa el nombre del titular</span>`;
-    return;
-  }
-  if (!expiry || !/^(0[1-9]|1[0-2])\/\d{2}$/.test(expiry)) {
-    status.innerHTML = `<span class="text-danger">❌ Fecha inválida (formato MM/AA)</span>`;
-    return;
-  }
-  if (!cvv || !/^\d{3}$/.test(cvv)) {
-    status.innerHTML = `<span class="text-danger">❌ CVV inválido (3 dígitos)</span>`;
-    return;
-  }
+
+
+  const approvedCards = [
+
+
+  ]
+
 
   // Deshabilitar botón y simular proceso
-  const btn = document.getElementById("pay-confirm-btn");
-  btn.disabled = true;
-  status.innerHTML = `<span class="text-secondary">⏳ Procesando pago...</span>`;
+
+  
 
   setTimeout(() => {
     status.innerHTML = `<span class="text-success">✅ ¡Pago aprobado!</span>`;
