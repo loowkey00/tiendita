@@ -1,13 +1,15 @@
 // loquequieras.js
-// Cargar el carrito desde LocalStorage para mantenerlo entre las distintas páginas HTML
+
+// =========================
+// CARRITO (LocalStorage)
+// =========================
+
 let cart = JSON.parse(localStorage.getItem("d6guitars_cart")) || [];
 
-// DOM Elements
 const cartCount = document.getElementById("cart-count");
 const cartItemsContainer = document.getElementById("cartItems");
 const cartTotalDisplay = document.getElementById("cartTotal");
 
-// Modal Elements
 const modalProductImg = document.getElementById("modalProductImg");
 const modalProductTitle = document.getElementById("modalProductTitle");
 const modalProductDesc = document.getElementById("modalProductDesc");
@@ -17,7 +19,167 @@ const modalQuantity = document.getElementById("modalQuantity");
 
 let cartToast;
 
-// Inicializar al cargar el DOM
+// =========================
+// INYECTAR MODAL DE PAGO
+// (se crea una sola vez via JS,
+//  no hay que pegarlo en cada HTML)
+// =========================
+
+document.body.insertAdjacentHTML("beforeend", `
+  <div class="modal fade" id="paymentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-bold">
+            <i class="bi bi-credit-card me-2 text-danger"></i>Pago simulado
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body px-4 pb-4">
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold text-muted small">NÚMERO DE TARJETA</label>
+            <input id="pay-number" type="text" class="form-control form-control-lg"
+              placeholder="0000 0000 0000 0000" maxlength="19" inputmode="numeric">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold text-muted small">TITULAR</label>
+            <input id="pay-name" type="text" class="form-control form-control-lg"
+              placeholder="Nombre como aparece en la tarjeta">
+          </div>
+
+          <div class="row g-3 mb-4">
+            <div class="col-6">
+              <label class="form-label fw-semibold text-muted small">FECHA DE EXPIRACIÓN</label>
+              <input id="pay-expiry" type="text" class="form-control form-control-lg"
+                placeholder="MM/AA" maxlength="5" inputmode="numeric">
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-semibold text-muted small">CVV</label>
+              <input id="pay-cvv" type="text" class="form-control form-control-lg"
+                placeholder="123" maxlength="3" inputmode="numeric">
+            </div>
+          </div>
+
+          <p id="pay-status" class="text-center fw-semibold mb-3" style="min-height: 24px;"></p>
+
+          <button id="pay-confirm-btn" type="button"
+            class="btn btn-danger btn-lg w-100 fw-bold text-uppercase shadow-sm">
+            <i class="bi bi-lock-fill me-2"></i>Confirmar Pago
+          </button>
+
+        </div>
+      </div>
+    </div>
+  </div>
+`);
+
+// =========================
+// FORMATO AUTOMÁTICO INPUTS
+// =========================
+
+document.getElementById("pay-number").addEventListener("input", function () {
+  let val = this.value.replace(/\D/g, "").substring(0, 16);
+  this.value = val.match(/.{1,4}/g)?.join(" ") || val;
+});
+
+document.getElementById("pay-expiry").addEventListener("input", function () {
+  let val = this.value.replace(/\D/g, "").substring(0, 4);
+  this.value = val.length >= 3 ? val.slice(0, 2) + "/" + val.slice(2) : val;
+});
+
+document.getElementById("pay-cvv").addEventListener("input", function () {
+  this.value = this.value.replace(/\D/g, "").substring(0, 3);
+});
+
+// =========================
+// LÓGICA DEL PAGO
+// =========================
+
+document.getElementById("pay-confirm-btn").addEventListener("click", function () {
+  const status = document.getElementById("pay-status");
+
+  const number = document.getElementById("pay-number").value.replace(/\s/g, "").trim();
+  const name   = document.getElementById("pay-name").value.trim();
+  const expiry = document.getElementById("pay-expiry").value.trim();
+  const cvv    = document.getElementById("pay-cvv").value.trim();
+
+  // Validaciones
+  if (!number || !/^\d{16}$/.test(number)) {
+    status.innerHTML = `<span class="text-danger">❌ Número de tarjeta inválido (16 dígitos)</span>`;
+    return;
+  }
+  if (!name) {
+    status.innerHTML = `<span class="text-danger">❌ Ingresa el nombre del titular</span>`;
+    return;
+  }
+  if (!expiry || !/^(0[1-9]|1[0-2])\/\d{2}$/.test(expiry)) {
+    status.innerHTML = `<span class="text-danger">❌ Fecha inválida (formato MM/AA)</span>`;
+    return;
+  }
+  if (!cvv || !/^\d{3}$/.test(cvv)) {
+    status.innerHTML = `<span class="text-danger">❌ CVV inválido (3 dígitos)</span>`;
+    return;
+  }
+
+  // Deshabilitar botón y simular proceso
+  const btn = document.getElementById("pay-confirm-btn");
+  btn.disabled = true;
+  status.innerHTML = `<span class="text-secondary">⏳ Procesando pago...</span>`;
+
+  setTimeout(() => {
+    status.innerHTML = `<span class="text-success">✅ ¡Pago aprobado!</span>`;
+
+    generateReceipt(name);
+
+    setTimeout(() => {
+      // Cerrar modal y limpiar carrito
+      bootstrap.Modal.getInstance(document.getElementById("paymentModal")).hide();
+
+      cart = [];
+      localStorage.removeItem("d6guitars_cart");
+      updateCartUI();
+
+      // Limpiar campos del modal
+      ["pay-number", "pay-name", "pay-expiry", "pay-cvv"].forEach(id => {
+        document.getElementById(id).value = "";
+      });
+      status.innerHTML = "";
+      btn.disabled = false;
+
+      // Mostrar toast de éxito
+      const successToast = new bootstrap.Toast(
+        document.getElementById("cartToast"), { delay: 4000 }
+      );
+      document.querySelector("#cartToast .toast-body").innerHTML =
+        `<i class="bi bi-check-circle-fill fs-5"></i> ¡Compra realizada con éxito!`;
+      successToast.show();
+
+    }, 1500);
+  }, 2000);
+});
+
+// =========================
+// BOTÓN "FINALIZAR COMPRA"
+// abre el modal de pago
+// =========================
+
+document.addEventListener("click", function (e) {
+  if (e.target.closest(".btn-checkout")) {
+    if (cart.length === 0) return;
+    const offcanvas = bootstrap.Offcanvas.getInstance(document.getElementById("cartOffcanvas"));
+    if (offcanvas) offcanvas.hide();
+    setTimeout(() => {
+      new bootstrap.Modal(document.getElementById("paymentModal")).show();
+    }, 300);
+  }
+});
+
+// =========================
+// INICIALIZAR AL CARGAR DOM
+// =========================
+
 document.addEventListener("DOMContentLoaded", () => {
   updateCartUI();
   const toastEl = document.getElementById("cartToast");
@@ -26,18 +188,18 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-// Lógica de llenado del Modal
+// =========================
+// MODAL DE PRODUCTO
+// =========================
+
 document.querySelectorAll(".btn-details").forEach((button) => {
   button.addEventListener("click", (e) => {
     const btn = e.currentTarget;
     if (modalQuantity) modalQuantity.value = 1;
-
     if (modalProductTitle) modalProductTitle.innerText = btn.dataset.name;
     if (modalProductDesc) modalProductDesc.innerText = btn.dataset.desc;
-    if (modalProductPrice)
-      modalProductPrice.innerText = `$${btn.dataset.price}`;
+    if (modalProductPrice) modalProductPrice.innerText = `$${btn.dataset.price}`;
     if (modalProductImg) modalProductImg.src = btn.dataset.img;
-
     if (modalAddToCartBtn) {
       modalAddToCartBtn.dataset.name = btn.dataset.name;
       modalAddToCartBtn.dataset.price = btn.dataset.price;
@@ -45,7 +207,10 @@ document.querySelectorAll(".btn-details").forEach((button) => {
   });
 });
 
-// Lógica de Agregar al Carrito desde el Modal
+// =========================
+// AGREGAR AL CARRITO
+// =========================
+
 if (modalAddToCartBtn) {
   modalAddToCartBtn.addEventListener("click", (e) => {
     const name = e.target.closest("button").dataset.name;
@@ -69,16 +234,17 @@ if (modalAddToCartBtn) {
   });
 }
 
-// Función para actualizar la interfaz del carrito y el LocalStorage
+// =========================
+// ACTUALIZAR UI DEL CARRITO
+// =========================
+
 function updateCartUI() {
-  // Guardar en LocalStorage
   localStorage.setItem("d6guitars_cart", JSON.stringify(cart));
 
   if (!cartCount || !cartItemsContainer || !cartTotalDisplay) return;
 
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
   cartCount.innerText = totalItems;
-
   cartCount.classList.add("scale-up");
   setTimeout(() => cartCount.classList.remove("scale-up"), 200);
 
@@ -86,39 +252,115 @@ function updateCartUI() {
   let total = 0;
 
   if (cart.length === 0) {
-    cartItemsContainer.innerHTML = `<li class="list-group-item text-center text-muted py-5">
-                <i class="bi bi-cart-x display-1 d-block mb-3 opacity-25"></i>
-                El carrito está vacío
-            </li>`;
+    cartItemsContainer.innerHTML = `
+      <li class="list-group-item text-center text-muted py-5">
+        <i class="bi bi-cart-x display-1 d-block mb-3 opacity-25"></i>El carrito está vacío
+      </li>`;
   } else {
     cart.forEach((item, index) => {
       total += item.price * item.quantity;
       const li = document.createElement("li");
-      li.className =
-        "list-group-item d-flex justify-content-between align-items-center";
+      li.className = "list-group-item d-flex justify-content-between align-items-center";
       li.innerHTML = `
-                <div>
-                    <h6 class="my-0 fw-bold">${item.name}</h6>
-                    <small class="text-muted">$${item.price.toFixed(2)} x ${item.quantity}</small>
-                </div>
-                <div class="d-flex align-items-center">
-                    <span class="fw-bold text-success me-3">$${(item.price * item.quantity).toFixed(2)}</span>
-                    <button class="btn btn-outline-danger remove-btn p-0" data-index="${index}">
-                        <i class="bi bi-trash pointer-none"></i>
-                    </button>
-                </div>
-            `;
+        <div>
+          <h6 class="my-0 fw-bold">${item.name}</h6>
+          <small class="text-muted">$${item.price.toFixed(2)} x ${item.quantity}</small>
+        </div>
+        <div class="d-flex align-items-center">
+          <span class="fw-bold text-success me-3">$${(item.price * item.quantity).toFixed(2)}</span>
+          <button class="btn btn-outline-danger remove-btn p-0" data-index="${index}">
+            <i class="bi bi-trash pointer-none"></i>
+          </button>
+        </div>`;
       cartItemsContainer.appendChild(li);
     });
 
     document.querySelectorAll(".remove-btn").forEach((btn) => {
       btn.addEventListener("click", (e) => {
-        const itemIndex = e.currentTarget.dataset.index;
-        cart.splice(itemIndex, 1);
+        cart.splice(e.currentTarget.dataset.index, 1);
         updateCartUI();
       });
     });
   }
 
   cartTotalDisplay.innerText = total.toFixed(2);
+}
+
+// =========================
+// GENERAR BOLETA PDF
+// =========================
+function generateReceipt(cardholderName) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const orden = Math.floor(Math.random() * 900000) + 100000;
+  const fecha = new Date().toLocaleDateString();
+
+  // --- ENCABEZADO ---
+  doc.setFillColor(40, 40, 40); // Fondo gris oscuro
+  doc.rect(0, 0, 210, 40, "F");
+  
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(24);
+  doc.setFont("helvetica", "bold");
+  doc.text("D6GUITARS", 15, 25);
+  
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("COMPROBANTE DE PAGO", 15, 33);
+  doc.text(`Fecha: ${fecha}`, 195, 25, { align: "right" });
+  doc.text(`Orden: #${orden}`, 195, 33, { align: "right" });
+
+  // --- INFO CLIENTE ---
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text("DETALLES DEL CLIENTE", 15, 55);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Nombre: ${cardholderName.toUpperCase()}`, 15, 62);
+
+  // --- TABLA DE PRODUCTOS ---
+  doc.setDrawColor(200, 200, 200);
+  doc.line(15, 70, 195, 70); // Línea superior
+  
+  doc.setFont("helvetica", "bold");
+  doc.text("Producto", 15, 77);
+  doc.text("Cant.", 140, 77);
+  doc.text("Subtotal", 195, 77, { align: "right" });
+  doc.line(15, 80, 195, 80); // Línea inferior encabezado tabla
+
+  let y = 90;
+  let totalAcumulado = 0;
+  doc.setFont("helvetica", "normal");
+
+  cart.forEach((item) => {
+    const subtotal = item.price * item.quantity;
+    totalAcumulado += subtotal;
+
+    doc.text(item.name, 15, y);
+    doc.text(item.quantity.toString(), 142, y);
+    doc.text(`$${subtotal.toFixed(2)}`, 195, y, { align: "right" });
+    
+    y += 10;
+  });
+
+  // --- SECCIÓN TOTAL ---
+  y += 10;
+  doc.setDrawColor(220, 53, 69); // Rojo de tu marca
+  doc.setLineWidth(1);
+  doc.line(120, y, 195, y); // Línea sobre el total
+  
+  y += 10;
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("TOTAL COMPRA:", 120, y);
+  doc.setTextColor(25, 135, 84); // Verde para el precio
+  doc.text(`$${totalAcumulado.toFixed(2)}`, 195, y, { align: "right" });
+
+  // --- PIE DE PÁGINA ---
+  doc.setFontSize(8);
+  doc.setTextColor(150, 150, 150);
+  doc.text("Gracias por elegir D6guitars. Este es un documento digital.", 105, 280, { align: "center" });
+
+  // Descarga
+  doc.save(`Boleta_D6guitars_${orden}.pdf`);
 }
