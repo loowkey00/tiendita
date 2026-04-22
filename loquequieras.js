@@ -16,6 +16,10 @@ const modalProductDesc = document.getElementById("modalProductDesc");
 const modalProductPrice = document.getElementById("modalProductPrice");
 const modalAddToCartBtn = document.getElementById("modalAddToCartBtn");
 const modalQuantity = document.getElementById("modalQuantity");
+const cardSaved =
+  JSON.parse(localStorage.getItem("d6guitars_card_saved")) || null;
+
+const cardStatus = cardSaved ? "saved" : "default"; // default, saved, updating
 
 let cartToast;
 
@@ -25,7 +29,9 @@ let cartToast;
 //  no hay que pegarlo en cada HTML)
 // =========================
 
-document.body.insertAdjacentHTML("beforeend", `
+document.body.insertAdjacentHTML(
+  "beforeend",
+  `
   <div class="modal fade" id="paymentModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
@@ -36,31 +42,87 @@ document.body.insertAdjacentHTML("beforeend", `
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body px-4 pb-4">
+          {
+             cardStatus === "saved" ?
+              <>
+                <div class="mb-3">
+                  <label class="form-label fw-semibold text-muted small">NÚMERO DE TARJETA</label>
+                  <input id="pay-number" type="text" class="form-control form-control-lg"
+                    placeholder="0000 0000 0000 0000" maxlength="19" inputmode="numeric" value="${maskCardNumber(cardSaved.number)}" disabled>
+                </div>
 
-          <div class="mb-3">
-            <label class="form-label fw-semibold text-muted small">NÚMERO DE TARJETA</label>
-            <input id="pay-number" type="text" class="form-control form-control-lg"
-              placeholder="0000 0000 0000 0000" maxlength="19" inputmode="numeric">
-          </div>
+                <div class="mb-3">
+                  <label class="form-label fw-semibold text-muted small">TITULAR</label>
+                  <input id="pay-name" type="text" class="form-control form-control-lg"
+                    placeholder="Nombre como aparece en la tarjeta" value="${cardSaved.name}" disabled>
+                </div>
 
-          <div class="mb-3">
-            <label class="form-label fw-semibold text-muted small">TITULAR</label>
-            <input id="pay-name" type="text" class="form-control form-control-lg"
-              placeholder="Nombre como aparece en la tarjeta">
-          </div>
+                <div class="row g-3 mb-4">
+                  <div class="col-6">
+                    <label class="form-label fw-semibold text-muted small">FECHA DE EXPIRACIÓN</label>
+                    <input id="pay-expiry" type="text" class="form-control form-control-lg"
+                      placeholder="MM/AA" maxlength="5" inputmode="numeric" value="${cardSaved.expiry}" disabled>
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label fw-semibold text-muted small">CVV</label>
+                    <input id="pay-cvv" type="text" class="form-control form-control-lg"
+                      placeholder="123" maxlength="3" inputmode="numeric" value="${maskCVV(cardSaved.cvv)}" disabled>
+                  </div>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label fw-semibold text-muted small">ACTIVA</label>
+                  <input id="pay-active" type="checkbox" class="form-check-input" ${cardSaved.active ? "checked" : ""} disabled>
+                  <label for="pay-active" class="form-label fw-semibold text-muted small">Marcar como tarjeta activa</label>
+                </div>
 
-          <div class="row g-3 mb-4">
-            <div class="col-6">
-              <label class="form-label fw-semibold text-muted small">FECHA DE EXPIRACIÓN</label>
-              <input id="pay-expiry" type="text" class="form-control form-control-lg"
-                placeholder="MM/AA" maxlength="5" inputmode="numeric">
-            </div>
-            <div class="col-6">
-              <label class="form-label fw-semibold text-muted small">CVV</label>
-              <input id="pay-cvv" type="text" class="form-control form-control-lg"
-                placeholder="123" maxlength="3" inputmode="numeric">
-            </div>
-          </div>
+                <button id="delete-card-btn" type="button"
+                  class="btn btn-outline-danger btn-lg w-100 fw-bold text-uppercase shadow-sm">
+                  <i class="bi bi-trash-fill me-2"></i>Eliminar tarjeta guardada
+                </button>
+
+                {
+                  cardStatus === "updating" && (
+                    <button id="update-card-btn" type="button" class="btn btn-outline-secondary btn-lg w-100 fw-bold text-uppercase shadow-sm mt-2">
+                      <i class="bi bi-pencil-fill me-2"></i>Actualizar tarjeta
+                    </button>
+                  )
+                }
+
+              </>
+              :
+              <>
+                <div class="mb-3">
+                  <label class="form-label fw-semibold text-muted small">NÚMERO DE TARJETA</label>
+                  <input id="pay-number" type="text" class="form-control form-control-lg"
+                    placeholder="0000 0000 0000 0000" maxlength="19" inputmode="numeric">
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label fw-semibold text-muted small">TITULAR</label>
+                  <input id="pay-name" type="text" class="form-control form-control-lg"
+                    placeholder="Nombre como aparece en la tarjeta">
+                </div>
+
+                <div class="row g-3 mb-4">
+                  <div class="col-6">
+                    <label class="form-label fw-semibold text-muted small">FECHA DE EXPIRACIÓN</label>
+                    <input id="pay-expiry" type="text" class="form-control form-control-lg"
+                      placeholder="MM/AA" maxlength="5" inputmode="numeric">
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label fw-semibold text-muted small">CVV</label>
+                    <input id="pay-cvv" type="text" class="form-control form-control-lg"
+                      placeholder="123" maxlength="3" inputmode="numeric">
+                  </div>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label fw-semibold text-muted small">ACTIVA</label>
+                  <input id="pay-active" type="checkbox" class="form-check-input">
+                  <label for="pay-active" class="form-label fw-semibold text-muted small">Marcar como tarjeta activa</label>
+                </div>   
+  
+              </>
+          }
 
           <span id="pay-status">
           TEST STATUS
@@ -70,7 +132,13 @@ document.body.insertAdjacentHTML("beforeend", `
             class="btn btn-danger btn-lg w-100 fw-bold text-uppercase shadow-sm">
             <i class="bi bi-lock-fill me-2"></i>Agregar tarjeta
           </button>
-
+                          {
+                  updateCard && (
+                    <button id="update-card-btn" type="button" class="btn btn-outline-secondary btn-lg w-100 fw-bold text-uppercase shadow-sm mt-2">
+                      <i class="bi bi-pencil-fill me-2"></i>Actualizar tarjeta
+                    </button>
+                  )
+                }
           <button id="pay-confirm-btn" type="button" style="display: none;"
             class="btn btn-danger btn-lg w-100 fw-bold text-uppercase shadow-sm">
             <i class="bi bi-lock-fill me-2"></i>Confirmar Pago
@@ -79,7 +147,8 @@ document.body.insertAdjacentHTML("beforeend", `
       </div>
     </div>
   </div>
-`);
+`,
+);
 
 // =========================
 // FORMATO AUTOMÁTICO INPUTS
@@ -99,141 +168,235 @@ document.getElementById("pay-cvv").addEventListener("input", function () {
   this.value = this.value.replace(/\D/g, "").substring(0, 3);
 });
 
-
-
+document.getElementById("pay-active").addEventListener("change", function () {
+  if (this.checked) {
+    this.value = "true";
+  } else {
+    this.value = "false";
+  }
+});
 
 // =========================
 // LÓGICA DEL PAGO
 // =========================
-  const changeStatus = (message, customClass) => {
-    let status = `<span class='${customClass}'> ${message}</span>`;
-    return status;
+const changeStatus = (message, customClass) => {
+  let status = `<span class='${customClass}'> ${message}</span>`;
+  return status;
+};
+
+const maskCardNumber = (number) => {
+  return "**** **** **** " + number.slice(-4);
+};
+
+const maskCVV = (cvv) => {
+  return "***";
+};
+
+const updateCard = (updatedData) => {
+  // Lógica para actualizar tarjeta en LocalStorage
+  let card = JSON.parse(localStorage.getItem("d6guitars_card_saved")) || {};
+  localStorage.setItem(
+    "d6guitars_card_saved",
+    JSON.stringify({ ...card, ...updatedData }),
+  );
+};
+
+const deleteCard = () => {
+  // Lógica para eliminar tarjeta desde LocalStorage
+  localStorage.setItem("d6guitars_card_saved", JSON.stringify({}));
+};
+
+const getCard = () => {
+  // Logica para obtener tarjeta desde LocalStorage
+  let card = JSON.parse(localStorage.getItem("d6guitars_card_saved")) || {};
+  return card;
+};
+
+const saveCard = (card) => {
+  // Lógica para guardar tarjeta en LocalStorage
+  let cardSaved =
+    JSON.parse(localStorage.getItem("d6guitars_card_saved")) || {};
+  localStorage.setItem(
+    "d6guitars_card_saved",
+    JSON.stringify({ ...cardSaved, ...card }),
+  );
+};
+
+const generateId = () => {
+  return Date.now().toString(36) + Math.random().toString(36).substring(2, 10);
+};
+
+const createCard = (number, name, expiry, cvv, active) => {
+  let dangerClass = "text-danger";
+  let successClass = "text-success";
+  let message = "";
+
+  let response = {
+    status: "error",
+    message: message,
+    card: null,
+  };
+
+  if (!number || !/^\d{16}$/.test(number)) {
+    message = "❌ Número de tarjeta inválido (16 dígitos)";
+    response.message = message;
+    return response;
+  }
+  if (!name) {
+    message = "❌ Ingresa el nombre del titular";
+    response.message = message;
+    return response;
+  }
+  if (!expiry || !/^(0[1-9]|1[0-2])\/\d{2}$/.test(expiry)) {
+    message = "❌ Fecha inválida (formato MM/AA)";
+    response.message = message;
+    return response;
+  }
+  if (!cvv || !/^\d{3}$/.test(cvv)) {
+    message = "❌ CVV inválido (3 dígitos)";
+    response.message = message;
+    return response;
+  }
+  if (typeof active != "boolean") {
+    message = "❌ Active debe ser booleano (true/false)";
+    response.message = message;
+    return response;
   }
 
-  const getApprovedCards = () => {
+  let cardJson = {
+    id: generateId(),
+    number: number,
+    name: name,
+    expiry: expiry,
+    cvv: cvv,
+    active: active,
+  };
 
-    return []
-  }
-  const getRejectedCards = () => {
-
-    return []
-  }
-
-  const getCard = (id) => {
-
-    return {}
-  }
-
-  const saveCard = () => {
-
-
-    return 
+  if (active) {
+    message = "✅ Tarjeta aprobada";
+    response.status = "approved";
+  } else {
+    message = "❌ Tarjeta rechazada";
+    response.status = "rejected";
   }
 
-  const generateId = () => {
-    return Date.now().toString(36) + Math.random().toString(36).substring(2,10);
-  }
+  response.message = message;
+  response.card = cardJson;
 
-  const createCard = (number, name, expiry, cvv, active) => {
+  return response;
+};
 
-    let dangerClass = "text-danger";
-    let message = "";
-
-    if (!number || !/^\d{16}$/.test(number)) {
-      message =  "❌ Número de tarjeta inválido (16 dígitos)";
-      status.innerHTML = changeStatus(message, dangerClass);
-      return;
-    }
-    if (!name) {
-      message = "❌ Ingresa el nombre del titular";
-      status.innerHTML = changeStatus(message, dangerClass);
-      return;
-    }
-    if (!expiry || !/^(0[1-9]|1[0-2])\/\d{2}$/.test(expiry)) {
-      message = "❌ Fecha inválida (formato MM/AA)";
-      status.innerHTML = changeStatus(message, dangerClass);
-      return;
-    }
-    if (!cvv || !/^\d{3}$/.test(cvv)) {
-      message = "❌ CVV inválido (3 dígitos)";
-      status.innerHTML = changeStatus(message, dangerClass);
-      return;
-    }
-
-    if (typeof(active) == Boolean(active)) {
-      message = "❌ Active debe ser booleano (true/false)";
-      status.innerHTML = changeStatus(message, dangerClass);
-      return;      
-    }
-
-    let cardJson = {
-      "id": generateId(),
-      "number": number,
-      "name": name,
-      "expiry": expiry,
-      "cvv": cvv,
-      "active": active
-    }
-
-    return cardJson;
-  } 
-
-document.getElementById("pay-confirm-btn").addEventListener("click", function () {
-
-  const btn = document.getElementById("pay-confirm-btn");
-  btn.disabled = true;
-
-  const status = document.getElementById("pay-status");
-  status.innerHTML = `<span class="text-secondary">⏳ Procesando pago...</span>`;
-
-  const number = document.getElementById("pay-number").value.replace(/\s/g, "").trim();
-  const name   = document.getElementById("pay-name").value.trim();
+const getInputs = () => {
+  const number = document
+    .getElementById("pay-number")
+    .value.replace(/\s/g, "")
+    .trim();
+  const name = document.getElementById("pay-name").value.trim();
   const expiry = document.getElementById("pay-expiry").value.trim();
-  const cvv    = document.getElementById("pay-cvv").value.trim();
+  const cvv = document.getElementById("pay-cvv").value.trim();
+  const active = document.getElementById("pay-active").checked;
 
+  return { number, name, expiry, cvv, active };
+};
 
+document
+  .getElementById("delete-card-btn")
+  ?.addEventListener("click", function () {
+    deleteCard();
+    this.style.display = "none";
+    document.getElementById("update-card-btn").style.display = "none";
+    document.getElementById("add-card-btn").style.display = "block";
+    const status = document.getElementById("pay-status");
+    status.innerHTML = changeStatus("✅ Tarjeta eliminada", "text-success");
+  });
 
-  const approvedCards = [
+document
+  .getElementById("update-card-btn")
+  ?.addEventListener("click", function () {
+    const { number, name, expiry, cvv, active } = getInputs();
+    const updatedData = { number, name, expiry, cvv, active };
+    updateCard(updatedData);
+    const status = document.getElementById("pay-status");
+    status.innerHTML = changeStatus("✅ Tarjeta actualizada", "text-success");
+  });
 
+document.getElementById("add-card-btn").addEventListener("click", function () {
+  this.disabled = true;
+  const status = document.getElementById("pay-status");
+  status.innerHTML = changeStatus("⏳ Validando tarjeta...", "text-secondary");
 
-  ]
+  const { number, name, expiry, cvv, active } = getInputs();
 
+  console.log("Inputs:", { number, name, expiry, cvv, active });
 
-  // Deshabilitar botón y simular proceso
+  const response = createCard(number, name, expiry, cvv, active);
 
-  
+  console.log("CreateCard response:", response);
 
-  setTimeout(() => {
-    status.innerHTML = `<span class="text-success">✅ ¡Pago aprobado!</span>`;
+  switch (response.status) {
+    case "approved":
+      status.innerHTML = changeStatus(response.message, "text-success");
+      saveCard(response.card);
+      this.style.display = "none";
+      document.getElementById("pay-confirm-btn").style.display = "block";
+      break;
+    case "rejected":
+      status.innerHTML = changeStatus(response.message, "text-danger");
+      saveCard(response.card);
+      this.disabled = false;
+      break;
+    default:
+      status.innerHTML = changeStatus(response.message, "text-danger");
+      this.disabled = false;
+  }
+});
 
-    generateReceipt(name);
+document
+  .getElementById("pay-confirm-btn")
+  .addEventListener("click", function () {
+    const btn = document.getElementById("pay-confirm-btn");
+    btn.disabled = true;
+
+    const status = document.getElementById("pay-status");
+    status.innerHTML = changeStatus("⏳ Procesando pago...", "text-secondary");
+
+    const approvedCards = [];
+
+    // Deshabilitar botón y simular proceso
 
     setTimeout(() => {
-      // Cerrar modal y limpiar carrito
-      bootstrap.Modal.getInstance(document.getElementById("paymentModal")).hide();
+      status.innerHTML = `<span class="text-success">✅ ¡Pago aprobado!</span>`;
 
-      cart = [];
-      localStorage.removeItem("d6guitars_cart");
-      updateCartUI();
+      generateReceipt(name);
 
-      // Limpiar campos del modal
-      ["pay-number", "pay-name", "pay-expiry", "pay-cvv"].forEach(id => {
-        document.getElementById(id).value = "";
-      });
-      status.innerHTML = "";
-      btn.disabled = false;
+      setTimeout(() => {
+        // Cerrar modal y limpiar carrito
+        bootstrap.Modal.getInstance(
+          document.getElementById("paymentModal"),
+        ).hide();
 
-      // Mostrar toast de éxito
-      const successToast = new bootstrap.Toast(
-        document.getElementById("cartToast"), { delay: 4000 }
-      );
-      document.querySelector("#cartToast .toast-body").innerHTML =
-        `<i class="bi bi-check-circle-fill fs-5"></i> ¡Compra realizada con éxito!`;
-      successToast.show();
+        cart = [];
+        localStorage.removeItem("d6guitars_cart");
+        updateCartUI();
 
-    }, 1500);
-  }, 2000);
-});
+        // Limpiar campos del modal
+        ["pay-number", "pay-name", "pay-expiry", "pay-cvv"].forEach((id) => {
+          document.getElementById(id).value = "";
+        });
+        status.innerHTML = "";
+        btn.disabled = false;
+
+        // Mostrar toast de éxito
+        const successToast = new bootstrap.Toast(
+          document.getElementById("cartToast"),
+          { delay: 4000 },
+        );
+        document.querySelector("#cartToast .toast-body").innerHTML =
+          `<i class="bi bi-check-circle-fill fs-5"></i> ¡Compra realizada con éxito!`;
+        successToast.show();
+      }, 1500);
+    }, 2000);
+  });
 
 // =========================
 // BOTÓN "FINALIZAR COMPRA"
@@ -243,7 +406,9 @@ document.getElementById("pay-confirm-btn").addEventListener("click", function ()
 document.addEventListener("click", function (e) {
   if (e.target.closest(".btn-checkout")) {
     if (cart.length === 0) return;
-    const offcanvas = bootstrap.Offcanvas.getInstance(document.getElementById("cartOffcanvas"));
+    const offcanvas = bootstrap.Offcanvas.getInstance(
+      document.getElementById("cartOffcanvas"),
+    );
     if (offcanvas) offcanvas.hide();
     setTimeout(() => {
       new bootstrap.Modal(document.getElementById("paymentModal")).show();
@@ -273,7 +438,8 @@ document.querySelectorAll(".btn-details").forEach((button) => {
     if (modalQuantity) modalQuantity.value = 1;
     if (modalProductTitle) modalProductTitle.innerText = btn.dataset.name;
     if (modalProductDesc) modalProductDesc.innerText = btn.dataset.desc;
-    if (modalProductPrice) modalProductPrice.innerText = `$${btn.dataset.price}`;
+    if (modalProductPrice)
+      modalProductPrice.innerText = `$${btn.dataset.price}`;
     if (modalProductImg) modalProductImg.src = btn.dataset.img;
     if (modalAddToCartBtn) {
       modalAddToCartBtn.dataset.name = btn.dataset.name;
@@ -335,7 +501,8 @@ function updateCartUI() {
     cart.forEach((item, index) => {
       total += item.price * item.quantity;
       const li = document.createElement("li");
-      li.className = "list-group-item d-flex justify-content-between align-items-center";
+      li.className =
+        "list-group-item d-flex justify-content-between align-items-center";
       li.innerHTML = `
         <div>
           <h6 class="my-0 fw-bold">${item.name}</h6>
@@ -373,12 +540,12 @@ function generateReceipt(cardholderName) {
   // --- ENCABEZADO ---
   doc.setFillColor(40, 40, 40); // Fondo gris oscuro
   doc.rect(0, 0, 210, 40, "F");
-  
+
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(24);
   doc.setFont("helvetica", "bold");
   doc.text("D6GUITARS", 15, 25);
-  
+
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   doc.text("COMPROBANTE DE PAGO", 15, 33);
@@ -396,7 +563,7 @@ function generateReceipt(cardholderName) {
   // --- TABLA DE PRODUCTOS ---
   doc.setDrawColor(200, 200, 200);
   doc.line(15, 70, 195, 70); // Línea superior
-  
+
   doc.setFont("helvetica", "bold");
   doc.text("Producto", 15, 77);
   doc.text("Cant.", 140, 77);
@@ -414,7 +581,7 @@ function generateReceipt(cardholderName) {
     doc.text(item.name, 15, y);
     doc.text(item.quantity.toString(), 142, y);
     doc.text(`$${subtotal.toFixed(2)}`, 195, y, { align: "right" });
-    
+
     y += 10;
   });
 
@@ -423,7 +590,7 @@ function generateReceipt(cardholderName) {
   doc.setDrawColor(220, 53, 69); // Rojo de tu marca
   doc.setLineWidth(1);
   doc.line(120, y, 195, y); // Línea sobre el total
-  
+
   y += 10;
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
@@ -434,7 +601,12 @@ function generateReceipt(cardholderName) {
   // --- PIE DE PÁGINA ---
   doc.setFontSize(8);
   doc.setTextColor(150, 150, 150);
-  doc.text("Gracias por elegir D6guitars. Este es un documento digital.", 105, 280, { align: "center" });
+  doc.text(
+    "Gracias por elegir D6guitars. Este es un documento digital.",
+    105,
+    280,
+    { align: "center" },
+  );
 
   // Descarga
   doc.save(`Boleta_D6guitars_${orden}.pdf`);
