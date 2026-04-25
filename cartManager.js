@@ -14,11 +14,46 @@ function addToCart(name, price, quantity = 1) {
   const existingItem = cart.find((item) => item.name === name);
 
   if (existingItem) {
-    existingItem.quantity += quantity;
+    if (existingItem.quantity + quantity > 99) {
+      existingItem.quantity = 99;
+      showCartToast("Límite de 99 unidades alcanzado.");
+    } else {
+      existingItem.quantity += quantity;
+    }
   } else {
-    cart.push({ name, price, quantity });
+    const finalQuantity = quantity > 99 ? 99 : quantity;
+    cart.push({ name, price, quantity: finalQuantity });
+    if (quantity > 99) {
+      showCartToast("Límite de 99 unidades alcanzado.");
+    }
   }
 
+  updateCartUI();
+}
+
+function changeQuantity(index, delta) {
+  if (cart[index]) {
+    const newQuantity = cart[index].quantity + delta;
+    
+    if (newQuantity > 99) {
+      cart[index].quantity = 99;
+      showCartToast("Límite de 99 unidades alcanzado.");
+    } else {
+      cart[index].quantity = newQuantity;
+    }
+    
+
+    if (cart[index].quantity <= 0) {
+      removeFromCart(index);
+    } else {
+      updateCartUI();
+    }
+  }
+}
+
+
+function removeFromCart(index) {
+  cart.splice(index, 1);
   updateCartUI();
 }
 
@@ -43,18 +78,15 @@ function showCartToast(message = "¡Producto agregado al carrito!") {
   cartToast.show();
 }
 
+
 function updateCartUI() {
   localStorage.setItem("d6guitars_cart", JSON.stringify(cart));
 
   if (!cartCount || !cartItemsContainer || !cartTotalDisplay) return;
 
-  const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-  cartCount.innerText = totalItems;
-  cartCount.classList.add("scale-up");
-  setTimeout(() => cartCount.classList.remove("scale-up"), 200);
-
-  cartItemsContainer.innerHTML = "";
+  cartItemsContainer.innerHTML = '';
   let total = 0;
+  let count = 0;
 
   if (cart.length === 0) {
     cartItemsContainer.innerHTML = `
@@ -64,36 +96,39 @@ function updateCartUI() {
   } else {
     cart.forEach((item, index) => {
       total += item.price * item.quantity;
+      count += item.quantity;
 
-      const li = document.createElement("li");
-      li.className =
-        "list-group-item d-flex justify-content-between align-items-center";
-
+      const li = document.createElement('li');
+      li.className = 'list-group-item d-flex justify-content-between align-items-center';
+      
       li.innerHTML = `
         <div>
-          <h6 class="my-0 fw-bold">${item.name}</h6>
-          <small class="text-muted">$${item.price.toFixed(2)} x ${item.quantity}</small>
+          <strong>${item.name}</strong>
+          <br>
+          <small class="text-muted">$${item.price.toLocaleString('en-US')}</small>
         </div>
         <div class="d-flex align-items-center">
-          <span class="fw-bold text-success me-3">$${(item.price * item.quantity).toFixed(2)}</span>
-          <button class="btn btn-outline-danger remove-btn p-0" data-index="${index}">
-            <i class="bi bi-trash pointer-none"></i>
-          </button>
+          <button class="btn btn-sm btn-outline-secondary px-2 py-0 me-1" onclick="changeQuantity(${index}, -1)">-</button>
+          
+          <span class="badge text-bg-secondary rounded-pill mx-1">${item.quantity}</span>
+          
+          <button class="btn btn-sm btn-outline-secondary px-2 py-0 ms-1 me-3" onclick="changeQuantity(${index}, 1)">+</button>
+          
+          <span class="fw-bold text-success me-3">$${(item.price * item.quantity).toLocaleString('en-US')}</span>
+          
+          <button class="btn btn-sm btn-outline-danger px-2 py-0" onclick="removeFromCart(${index})">X</button>
         </div>
       `;
-
       cartItemsContainer.appendChild(li);
-    });
-
-    document.querySelectorAll(".remove-btn").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        cart.splice(Number(e.currentTarget.dataset.index), 1);
-        updateCartUI();
-      });
     });
   }
 
-  cartTotalDisplay.innerText = total.toFixed(2);
+  // Actualizar contadores
+  cartCount.innerText = count;
+  cartCount.classList.add("scale-up");
+  setTimeout(() => cartCount.classList.remove("scale-up"), 200);
+
+  cartTotalDisplay.innerText = total.toLocaleString('en-US');
 }
 
 // =========================
@@ -150,7 +185,7 @@ function generateReceipt(cardholderName = "Cliente") {
 
     doc.text(item.name, 15, y);
     doc.text(item.quantity.toString(), 142, y);
-    doc.text(`$${subtotal.toFixed(2)}`, 195, y, { align: "right" });
+    doc.text(`$${subtotal.toLocaleString('en-US')}`, 195, y, { align: "right" });
 
     y += 10;
   });
@@ -165,7 +200,7 @@ function generateReceipt(cardholderName = "Cliente") {
   doc.setFont("helvetica", "bold");
   doc.text("TOTAL COMPRA:", 120, y);
   doc.setTextColor(25, 135, 84);
-  doc.text(`$${totalAcumulado.toFixed(2)}`, 195, y, { align: "right" });
+  doc.text(`$${totalAcumulado.toLocaleString('en-US')}`, 195, y, { align: "right" });
 
   doc.setFontSize(8);
   doc.setTextColor(150, 150, 150);
@@ -200,3 +235,5 @@ window.clearCart = clearCart;
 window.generateReceipt = generateReceipt;
 window.showCartToast = showCartToast;
 window.hasCartItems = hasCartItems;
+window.removeFromCart = removeFromCart;
+window.changeQuantity = changeQuantity;
