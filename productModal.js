@@ -103,3 +103,5 @@ document.addEventListener("click", function (e) {
     window.showCartToast("¡Producto agregado al carrito!");
   }
 });
+
+//hola que tal
